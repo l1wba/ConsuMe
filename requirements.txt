@@ -1,0 +1,32 @@
+# Pre-requisitos para executar o Minhas finanças no Windows
+# Este arquivo é informativo; não é instalado com pip.
+
+# Runtime JavaScript e gerenciador de pacotes (npm vem com o Node.js)
+Node.js 20 LTS ou superior
+
+# Toolchain para compilar a aplicação desktop Tauri (inclui o Cargo)
+Rust stable via rustup
+
+# Requisitos nativos do Tauri no Windows:
+# Visual Studio 2022 Build Tools com a carga "Desenvolvimento para desktop com C++"
+# Inclua MSVC v143 (x64/x86) e um Windows 10/11 SDK na instalação.
+# O MSVC fornece link.exe, necessário para compilar o alvo Rust MSVC.
+Microsoft Edge WebView2 Runtime
+
+# Para executar os comandos, abra o "Developer PowerShell for VS 2022"
+# (ou "x64 Native Tools Command Prompt for VS 2022") para carregar o linker.
+# Confirme que o linker está disponível:
+# where.exe link.exe
+#
+# No PowerShell, use npm.cmd caso a política de execução bloqueie npm.ps1.
+# Instale as dependências do projeto na pasta raiz:
+# npm.cmd install
+#
+# Inicie a aplicação desktop em modo de desenvolvimento:
+# npm.cmd run tauri dev
+#
+# Gere o aplicativo para distribuição:
+# npm.cmd run tauri build
+#
+# As dependências JavaScript são definidas em package.json.
+# As dependências Rust são definidas em src-tauri/Cargo.toml.
