@@ -7,19 +7,26 @@ import {
   ChevronDown,
   CircleHelp,
   LayoutDashboard,
+  Moon,
   Plus,
   Search,
   Settings2,
+  Sun,
   Trash2,
   Wallet,
 } from "lucide-react";
 import {
   createTransaction,
+  getThemePreference,
   listTransactions,
   removeTransaction,
+  saveThemePreference,
   type Transaction,
   type TransactionKind,
+  type ThemePreference,
 } from "./db";
+
+declare const __APP_VERSION__: string;
 
 const expenseCategories = ["Moradia", "Alimentação", "Transporte", "Saúde", "Lazer", "Educação", "Outros"];
 const incomeCategories = ["Salário", "Freelance", "Investimentos", "Presente", "Outros"];
@@ -64,6 +71,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [theme, setTheme] = useState<ThemePreference>("light");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -80,6 +89,16 @@ function App() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    getThemePreference()
+      .then((preference) => {
+        if (preference) setTheme(preference);
+      })
+      .catch((cause: unknown) => {
+        setError(`Não foi possível carregar a preferência de tema. ${String(cause)}`);
+      });
+  }, []);
 
   const filteredTransactions = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("pt-BR");
@@ -161,10 +180,21 @@ function App() {
     setCategory(nextKind === "expense" ? expenseCategories[0] : incomeCategories[0]);
   }
 
+  async function toggleTheme() {
+    const nextTheme: ThemePreference = theme === "light" ? "dark" : "light";
+    setError("");
+    try {
+      await saveThemePreference(nextTheme);
+      setTheme(nextTheme);
+    } catch (cause) {
+      setError(`Não foi possível salvar a preferência de tema. ${String(cause)}`);
+    }
+  }
+
   const maxCategoryAmount = expensesByCategory[0]?.[1] ?? 1;
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={theme}>
       <aside className="sidebar">
         <a className="brand" href="#" aria-label="Minhas finanças, início">
           <span className="brand-mark"><ChartNoAxesCombined size={21} strokeWidth={2.5} /></span>
@@ -181,6 +211,47 @@ function App() {
             <span className="local-note-icon"><CircleHelp size={17} /></span>
             <div><strong>Seus dados, no seu PC</strong><p>Salvos localmente em um banco SQLite.</p></div>
           </div>
+          <section className={`settings-menu${settingsOpen ? " open" : ""}`}>
+            <button
+              className="settings-trigger"
+              type="button"
+              aria-expanded={settingsOpen}
+              aria-controls="settings-options"
+              onClick={() => setSettingsOpen((open) => !open)}
+            >
+              <Settings2 size={17} />
+              <span>Configurações</span>
+              <ChevronDown size={15} className="settings-chevron" />
+            </button>
+            <div className="settings-collapse" id="settings-options" aria-hidden={!settingsOpen}>
+              <div className="settings-options">
+                <div className="theme-setting">
+                  <div className="theme-setting-copy">
+                    <span className="theme-current-icon" aria-hidden="true">
+                      {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
+                    </span>
+                    <span className="theme-setting-label">
+                      <strong>{theme === "dark" ? "Modo escuro" : "Modo claro"}</strong>
+                      <small>Tema atual</small>
+                    </span>
+                  </div>
+                  <button
+                    className="theme-switch"
+                    type="button"
+                    role="switch"
+                    aria-checked={theme === "dark"}
+                    aria-label="Modo escuro"
+                    tabIndex={settingsOpen ? 0 : -1}
+                    onClick={() => void toggleTheme()}
+                  >
+                    <span className="theme-switch-thumb">
+                      {theme === "dark" ? <Moon size={12} /> : <Sun size={12} />}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
           <button className="profile-button" type="button">
             <span className="avatar">L</span>
             <span className="profile-copy"><strong>Meu espaço</strong><small>Uso pessoal</small></span>
@@ -322,6 +393,7 @@ function App() {
           </section>
           <footer className="page-footer">Finanças pessoais <span>•</span> Seus dados ficam neste computador</footer>
         </div>
+        <span className="app-version" aria-label={`Versão ${__APP_VERSION__}`}>v{__APP_VERSION__}</span>
       </main>
     </div>
   );

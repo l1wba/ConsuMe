@@ -1,6 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
 
 export type TransactionKind = "income" | "expense";
+export type ThemePreference = "light" | "dark";
 
 export interface Transaction {
   id: number;
@@ -34,6 +35,12 @@ async function getDatabase(): Promise<Database> {
           date TEXT NOT NULL
         )
       `);
+      await database.execute(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      `);
       return database;
     }).catch((error: unknown) => {
       databasePromise = undefined;
@@ -42,6 +49,25 @@ async function getDatabase(): Promise<Database> {
   }
 
   return databasePromise;
+}
+
+export async function getThemePreference(): Promise<ThemePreference | null> {
+  const database = await getDatabase();
+  const rows = await database.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = $1",
+    ["theme"],
+  );
+  const preference = rows[0]?.value;
+  return preference === "light" || preference === "dark" ? preference : null;
+}
+
+export async function saveThemePreference(theme: ThemePreference): Promise<void> {
+  const database = await getDatabase();
+  await database.execute(
+    `INSERT INTO settings (key, value) VALUES ($1, $2)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    ["theme", theme],
+  );
 }
 
 export async function listTransactions(month: string): Promise<Transaction[]> {

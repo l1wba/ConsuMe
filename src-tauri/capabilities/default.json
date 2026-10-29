@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Permissões da janela principal do aplicativo",
   "windows": ["main"],
-  "permissions": ["core:default", "sql:default"]
+  "permissions": ["core:default", "sql:default", "sql:allow-execute"]
 }

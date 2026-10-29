@@ -2,6 +2,12 @@
 
 Aplicativo desktop para controle financeiro pessoal. A interface usa React e TypeScript, e os lançamentos ficam em um banco SQLite local no computador por meio do Tauri. Não há servidor de aplicação, sincronização em nuvem ou IndexedDB.
 
+## Versões
+
+O número da versão é mantido em `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` e `src-tauri/tauri.conf.json`; mantenha esses valores sincronizados. O Vite obtém a versão do `package.json` e a exibe no canto inferior direito do app. A versão também define o nome dos instaladores.
+
+Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.3.0` identifica a inclusão das configurações de aparência e do seletor de tema.
+
 ## Requisitos
 
 - Node.js LTS e npm
