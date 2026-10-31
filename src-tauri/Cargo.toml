@@ -1,6 +1,6 @@
 [package]
 name = "dashboard-gastos"
-version = "0.3.0"
+version = "0.3.1"
 description = "Controle local de entradas e despesas"
 authors = ["you"]
 edition = "2021"
@@ -15,3 +15,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+
+[profile.dev]
+debug = 0

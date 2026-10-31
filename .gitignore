@@ -1,5 +1,6 @@
 node_modules/
 dist/
+# Artefatos de compilação Tauri, incluindo builds dev/debug e instaladores release
 src-tauri/target/
 src-tauri/gen/schemas/
 *.log

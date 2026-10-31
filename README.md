@@ -6,7 +6,7 @@ Aplicativo desktop para controle financeiro pessoal. A interface usa React e Typ
 
 O número da versão é mantido em `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` e `src-tauri/tauri.conf.json`; mantenha esses valores sincronizados. O Vite obtém a versão do `package.json` e a exibe no canto inferior direito do app. A versão também define o nome dos instaladores.
 
-Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.3.0` identifica a inclusão das configurações de aparência e do seletor de tema.
+Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.3.1` inclui uma correção do modo de desenvolvimento para ignorar os arquivos de compilação Rust no monitoramento do Vite.
 
 ## Requisitos
 
@@ -28,7 +28,7 @@ No PowerShell, use `npm.cmd` se a política de execução bloquear `npm.ps1`. Is
 
 Se o Rust informar `linker link.exe not found`, abra o **Developer PowerShell for VS 2022** (ou o **x64 Native Tools Command Prompt for VS 2022**) e execute os comandos de desenvolvimento nesse terminal. Verifique primeiro se `where.exe link.exe` encontra o linker. Se não encontrar, abra o Visual Studio Installer, modifique a instalação do Build Tools e confira a carga e os componentes C++ acima. O VS Code, sozinho, não inclui o compilador nem o linker.
 
-O comando abre o aplicativo desktop e inicia o Vite como servidor de desenvolvimento local temporário. Esse servidor só atende a interface enquanto o modo de desenvolvimento está aberto; não é necessário hospedar nem administrar um servidor.
+O comando abre o aplicativo desktop e inicia o Vite como servidor de desenvolvimento local temporário. Esse servidor só atende a interface enquanto o modo de desenvolvimento está aberto; não é necessário hospedar nem administrar um servidor. O Vite ignora `src-tauri/target`, pois o Cargo modifica esses arquivos durante a compilação. O perfil Rust de desenvolvimento desativa símbolos de depuração para reduzir o espaço usado pelos artefatos locais.
 
 ## Gerar aplicativo
 
