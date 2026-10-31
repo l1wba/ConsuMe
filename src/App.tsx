@@ -6,6 +6,9 @@ import {
   ChartNoAxesCombined,
   ChevronDown,
   CircleHelp,
+  Github,
+  Info,
+  Linkedin,
   LayoutDashboard,
   Moon,
   Plus,
@@ -18,6 +21,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   createCategory,
   createTransaction,
@@ -81,6 +85,8 @@ function App() {
   const [theme, setTheme] = useState<ThemePreference>("light");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [categorySubmenuOpen, setCategorySubmenuOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [aboutLinkError, setAboutLinkError] = useState("");
   const [categoryKind, setCategoryKind] = useState<TransactionKind>("expense");
   const [categoryDraft, setCategoryDraft] = useState("");
   const [categoryDialog, setCategoryDialog] = useState<"manage" | "edit" | null>(null);
@@ -99,14 +105,25 @@ function App() {
   );
   const editableCategory = settingsCategories.find((item) => item.name === editingCategoryName);
 
+  async function openCreatorLink(url: string) {
+    setAboutLinkError("");
+    try {
+      await openUrl(url);
+    } catch (cause) {
+      setAboutLinkError(`Não foi possível abrir o link no navegador. ${String(cause)}`);
+    }
+  }
+
   useEffect(() => {
-    if (!categoryDialog) return;
+    if (!categoryDialog && !aboutOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !categoryDialogBusy) setCategoryDialog(null);
+      if (event.key !== "Escape") return;
+      if (aboutOpen) setAboutOpen(false);
+      if (categoryDialog && !categoryDialogBusy) setCategoryDialog(null);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [categoryDialog, categoryDialogBusy]);
+  }, [aboutOpen, categoryDialog, categoryDialogBusy]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -337,9 +354,11 @@ function App() {
   return (
     <div className="app-shell" data-theme={theme}>
       <aside className="sidebar">
-        <a className="brand" href="#" aria-label="Minhas finanças, início">
-          <span className="brand-mark"><ChartNoAxesCombined size={21} strokeWidth={2.5} /></span>
-          <span>finanças<span className="brand-dot">.</span></span>
+        <a className="brand" href="#" aria-label="ConsuMe, início">
+          <picture className="brand-image">
+            <source media="(max-width: 900px)" srcSet="/consume-mark.png" />
+            <img src="/consume-horizontal.png" alt="" />
+          </picture>
         </a>
         <div className="workspace-label">ESPAÇO PESSOAL</div>
         <nav className="main-nav" aria-label="Navegação principal">
@@ -427,6 +446,19 @@ function App() {
                     </button>
                   </div>
                 </div>
+                <button
+                  className="category-folder-trigger about-trigger"
+                  type="button"
+                  tabIndex={settingsOpen ? 0 : -1}
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    setCategorySubmenuOpen(false);
+                    setAboutOpen(true);
+                  }}
+                >
+                  <Info size={16} />
+                  <span>Sobre</span>
+                </button>
               </div>
             </div>
           </section>
@@ -571,7 +603,6 @@ function App() {
           </section>
           <footer className="page-footer">Finanças pessoais <span>•</span> Seus dados ficam neste computador</footer>
         </div>
-        <span className="app-version" aria-label={`Versão ${__APP_VERSION__}`}>v{__APP_VERSION__}</span>
       </main>
       {categoryDialog && (
         <div
@@ -703,6 +734,54 @@ function App() {
                 <button className="dialog-secondary-button" type="button" disabled={categoryDialogBusy} onClick={() => setCategoryDialog(null)}>Fechar</button>
               </footer>
             )}
+          </section>
+        </div>
+      )}
+      {aboutOpen && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setAboutOpen(false);
+          }}
+        >
+          <section
+            className="category-dialog about-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="about-dialog-title"
+          >
+            <header className="category-dialog-header">
+              <div>
+                <p className="dialog-eyebrow">INFORMAÇÕES DO APLICATIVO</p>
+                <h2 id="about-dialog-title">Sobre o ConsuMe</h2>
+                <p>Controle financeiro pessoal, simples e privado.</p>
+              </div>
+              <button className="dialog-close" type="button" aria-label="Fechar janela" onClick={() => setAboutOpen(false)}>
+                <X size={19} />
+              </button>
+            </header>
+            <div className="category-dialog-body about-dialog-body">
+              <div className="about-app-mark"><ChartNoAxesCombined size={22} /></div>
+              <div className="about-app-details">
+                <strong>ConsuMe</strong>
+                <span>Versão {__APP_VERSION__}</span>
+                <p>Aplicativo desktop para organizar entradas, despesas e categorias. Seus dados ficam armazenados localmente no seu computador.</p>
+              </div>
+              <div className="about-creator">
+                <span className="about-section-label">CRIADO POR</span>
+                <strong>Luciano Rocha</strong>
+                <div className="about-links">
+                  <button type="button" onClick={() => void openCreatorLink("https://github.com/l1wba")}>
+                    <Github size={16} /> GitHub
+                  </button>
+                  <button type="button" onClick={() => void openCreatorLink("https://www.linkedin.com/in/luciano-rocha31/")}>
+                    <Linkedin size={16} /> LinkedIn
+                  </button>
+                </div>
+                {aboutLinkError && <p className="about-link-error" role="alert">{aboutLinkError}</p>}
+              </div>
+            </div>
           </section>
         </div>
       )}

@@ -3,5 +3,16 @@
   "identifier": "default",
   "description": "Permissões da janela principal do aplicativo",
   "windows": ["main"],
-  "permissions": ["core:default", "sql:default", "sql:allow-execute"]
+  "permissions": [
+    "core:default",
+    "sql:default",
+    "sql:allow-execute",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://github.com/l1wba" },
+        { "url": "https://www.linkedin.com/in/luciano-rocha31/" }
+      ]
+    }
+  ]
 }

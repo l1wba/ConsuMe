@@ -1,12 +1,12 @@
-# Minhas finanças
+# ConsuMe
 
 Aplicativo desktop para controle financeiro pessoal. A interface usa React e TypeScript, e os lançamentos ficam em um banco SQLite local no computador por meio do Tauri. Não há servidor de aplicação, sincronização em nuvem ou IndexedDB.
 
 ## Versões
 
-O número da versão é mantido em `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` e `src-tauri/tauri.conf.json`; mantenha esses valores sincronizados. O Vite obtém a versão do `package.json` e a exibe no canto inferior direito do app. A versão também define o nome dos instaladores.
+O número da versão é mantido em `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` e `src-tauri/tauri.conf.json`; mantenha esses valores sincronizados. O Vite obtém a versão do `package.json` e a exibe na janela "Sobre". A versão também define o nome dos instaladores.
 
-Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.5.0` adiciona o submenu em cascata e as janelas de gerenciamento e edição de categorias.
+Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.6.4` aplica a identidade visual ConsuMe à interface.
 
 ## Requisitos
 
@@ -37,6 +37,10 @@ npm.cmd run tauri build
 ```
 
 O instalador/artefato da plataforma será gerado em `src-tauri/target/release/bundle`.
+
+## Ícones
+
+Os ícones do aplicativo são gerados pelo Tauri a partir da logo quadrada com transparência em `src-tauri/icons/logo-transparent.png`. Para regenerá-los após atualizar a logo, execute `npm.cmd run tauri -- icon src-tauri/icons/logo-transparent.png -o src-tauri/icons`.
 
 ## Armazenamento
 
