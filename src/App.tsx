@@ -9,27 +9,33 @@ import {
   LayoutDashboard,
   Moon,
   Plus,
+  Pencil,
   Search,
-  Settings2,
+  Settings,
   Sun,
+  Tags,
   Trash2,
   Wallet,
+  X,
 } from "lucide-react";
 import {
+  createCategory,
   createTransaction,
+  DEFAULT_CATEGORIES,
   getThemePreference,
+  listCategories,
   listTransactions,
+  removeCategory,
   removeTransaction,
+  renameCategory,
   saveThemePreference,
+  type Category,
   type Transaction,
   type TransactionKind,
   type ThemePreference,
 } from "./db";
 
 declare const __APP_VERSION__: string;
-
-const expenseCategories = ["Moradia", "Alimentação", "Transporte", "Saúde", "Lazer", "Educação", "Outros"];
-const incomeCategories = ["Salário", "Freelance", "Investimentos", "Presente", "Outros"];
 
 function currentMonth(): string {
   const now = new Date();
@@ -61,18 +67,46 @@ function App() {
   const [month, setMonth] = useState(currentMonth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [kindFilter, setKindFilter] = useState<"all" | TransactionKind>("all");
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [kind, setKind] = useState<TransactionKind>("expense");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState(expenseCategories[0]);
+  const [category, setCategory] = useState("Moradia");
   const [date, setDate] = useState(currentDate);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [theme, setTheme] = useState<ThemePreference>("light");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [categorySubmenuOpen, setCategorySubmenuOpen] = useState(false);
+  const [categoryKind, setCategoryKind] = useState<TransactionKind>("expense");
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [categoryDialog, setCategoryDialog] = useState<"manage" | "edit" | null>(null);
+  const [categoryDialogError, setCategoryDialogError] = useState("");
+  const [categoryDialogBusy, setCategoryDialogBusy] = useState(false);
+  const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [editedCategoryName, setEditedCategoryName] = useState("");
+
+  const categoriesForKind = useMemo(
+    () => categories.filter((item) => item.kind === kind),
+    [categories, kind],
+  );
+  const settingsCategories = useMemo(
+    () => categories.filter((item) => item.kind === categoryKind),
+    [categories, categoryKind],
+  );
+  const editableCategory = settingsCategories.find((item) => item.name === editingCategoryName);
+
+  useEffect(() => {
+    if (!categoryDialog) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !categoryDialogBusy) setCategoryDialog(null);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [categoryDialog, categoryDialogBusy]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -97,6 +131,14 @@ function App() {
       })
       .catch((cause: unknown) => {
         setError(`Não foi possível carregar a preferência de tema. ${String(cause)}`);
+      });
+  }, []);
+
+  useEffect(() => {
+    listCategories()
+      .then(setCategories)
+      .catch((cause: unknown) => {
+        setError(`Não foi possível carregar as categorias. ${String(cause)}`);
       });
   }, []);
 
@@ -134,8 +176,8 @@ function App() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const amountInCents = Math.round(Number(amount.replace(",", ".")) * 100);
-    if (!description.trim() || !Number.isSafeInteger(amountInCents) || amountInCents <= 0 || !date) {
-      setError("Preencha a descrição, um valor válido e a data do lançamento.");
+    if (!description.trim() || !Number.isSafeInteger(amountInCents) || amountInCents <= 0 || !date || !category) {
+      setError("Preencha a descrição, um valor válido, uma categoria e a data do lançamento.");
       return;
     }
 
@@ -175,9 +217,108 @@ function App() {
     }
   }
 
+  async function handleAddCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = categoryDraft.trim();
+    if (!name) return;
+    if (categories.some((item) => item.kind === categoryKind
+      && item.name.toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR"))) {
+      setCategoryDialogError("Já existe uma categoria com esse nome para esse tipo de lançamento.");
+      return;
+    }
+
+    setCategoryDialogError("");
+    setCategoryDialogBusy(true);
+    try {
+      const newCategory = { name, kind: categoryKind };
+      await createCategory(newCategory);
+      setCategories((current) => [...current, newCategory].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      setCategoryDraft("");
+      if (kind === categoryKind && !categoriesForKind.some((item) => item.name === category)) {
+        setCategory(name);
+      }
+    } catch (cause) {
+      setCategoryDialogError(`Não foi possível adicionar a categoria. ${String(cause)}`);
+    } finally {
+      setCategoryDialogBusy(false);
+    }
+  }
+
+  async function handleRemoveCategory(item: Category) {
+    if (!window.confirm(
+      `Remover a categoria "${item.name}"? Lançamentos antigos continuarão exibindo esse nome.`,
+    )) return;
+
+    setCategoryDialogError("");
+    setCategoryDialogBusy(true);
+    try {
+      await removeCategory(item);
+      const updatedCategories = categories.filter(
+        (categoryItem) => categoryItem.kind !== item.kind || categoryItem.name !== item.name,
+      );
+      setCategories(updatedCategories);
+      if (kind === item.kind && category === item.name) {
+        setCategory(updatedCategories.find((categoryItem) => categoryItem.kind === kind)?.name ?? "");
+      }
+    } catch (cause) {
+      setCategoryDialogError(`Não foi possível remover a categoria. ${String(cause)}`);
+    } finally {
+      setCategoryDialogBusy(false);
+    }
+  }
+
+  function changeCategoryKind(nextKind: TransactionKind) {
+    setCategoryKind(nextKind);
+    setCategoryDraft("");
+    const firstCategory = categories.find((item) => item.kind === nextKind);
+    setEditingCategoryName(firstCategory?.name ?? "");
+    setEditedCategoryName(firstCategory?.name ?? "");
+  }
+
+  function openCategoryDialog(dialog: "manage" | "edit") {
+    setCategoryDialogError("");
+    setCategoryDraft("");
+    setCategoryKind("expense");
+    const firstCategory = categories.find((item) => item.kind === "expense");
+    setEditingCategoryName(firstCategory?.name ?? "");
+    setEditedCategoryName(firstCategory?.name ?? "");
+    setSettingsOpen(false);
+    setCategorySubmenuOpen(false);
+    setCategoryDialog(dialog);
+  }
+
+  async function handleEditCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = editedCategoryName.trim();
+    if (!editableCategory || !name) return;
+    if (name.toLocaleLowerCase("pt-BR") === editableCategory.name.toLocaleLowerCase("pt-BR")) {
+      setCategoryDialogError("Informe um nome diferente para a categoria.");
+      return;
+    }
+
+    setCategoryDialogError("");
+    setCategoryDialogBusy(true);
+    try {
+      const previousName = editableCategory.name;
+      const updatedCategory = { ...editableCategory, name };
+      await renameCategory(editableCategory, name);
+      setCategories((current) => current.map((item) => (
+        item.kind === editableCategory.kind && item.name === previousName ? updatedCategory : item
+      )).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      if (kind === updatedCategory.kind && category === previousName) setCategory(name);
+      setEditingCategoryName(name);
+      setEditedCategoryName(name);
+      setCategoryDialog(null);
+    } catch (cause) {
+      setCategoryDialogError(`Não foi possível editar a categoria. ${String(cause)}`);
+    } finally {
+      setCategoryDialogBusy(false);
+    }
+  }
+
   function changeKind(nextKind: TransactionKind) {
     setKind(nextKind);
-    setCategory(nextKind === "expense" ? expenseCategories[0] : incomeCategories[0]);
+    setCategory(categories.find((item) => item.kind === nextKind)?.name ?? "");
   }
 
   async function toggleTheme() {
@@ -217,13 +358,18 @@ function App() {
               type="button"
               aria-expanded={settingsOpen}
               aria-controls="settings-options"
-              onClick={() => setSettingsOpen((open) => !open)}
+              onClick={() => {
+                setSettingsOpen((open) => {
+                  if (open) setCategorySubmenuOpen(false);
+                  return !open;
+                });
+              }}
             >
-              <Settings2 size={17} />
+              <Settings size={17} />
               <span>Configurações</span>
               <ChevronDown size={15} className="settings-chevron" />
             </button>
-            <div className="settings-collapse" id="settings-options" aria-hidden={!settingsOpen}>
+            <div className={`settings-collapse${settingsOpen ? " open" : ""}`} id="settings-options" aria-hidden={!settingsOpen}>
               <div className="settings-options">
                 <div className="theme-setting">
                   <div className="theme-setting-copy">
@@ -249,13 +395,45 @@ function App() {
                     </span>
                   </button>
                 </div>
+                <button
+                  className="category-folder-trigger"
+                  type="button"
+                  aria-expanded={categorySubmenuOpen}
+                  aria-controls="category-submenu"
+                  tabIndex={settingsOpen ? 0 : -1}
+                  onClick={() => setCategorySubmenuOpen((open) => !open)}
+                >
+                  <Tags size={16} />
+                  <span>Categorias</span>
+                  <ChevronDown size={14} className="category-folder-chevron" />
+                </button>
+                <div
+                  className={`category-submenu-collapse${categorySubmenuOpen ? " open" : ""}`}
+                  id="category-submenu"
+                  aria-hidden={!categorySubmenuOpen}
+                >
+                  <div className="category-submenu">
+                    <button className="category-submenu-item" type="button" tabIndex={categorySubmenuOpen ? 0 : -1} onClick={() => openCategoryDialog("manage")}>
+                      <svg className="category-manage-icons" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M5 3.5v6M2 6.5h6M5 20.5 20.5 5M15.5 19h6" />
+                      </svg>
+                      <span>Adicionar/remover categorias</span>
+                      <ChevronDown size={13} className="submenu-item-chevron" />
+                    </button>
+                    <button className="category-submenu-item" type="button" tabIndex={categorySubmenuOpen ? 0 : -1} onClick={() => openCategoryDialog("edit")}>
+                      <Pencil size={15} />
+                      <span>Editar categorias</span>
+                      <ChevronDown size={13} className="submenu-item-chevron" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
           <button className="profile-button" type="button">
             <span className="avatar">L</span>
             <span className="profile-copy"><strong>Meu espaço</strong><small>Uso pessoal</small></span>
-            <Settings2 size={17} className="profile-settings" />
+            <Settings size={17} className="profile-settings" />
           </button>
         </div>
       </aside>
@@ -295,12 +473,12 @@ function App() {
               </div>
               <form className="transaction-form" onSubmit={(event) => void handleSubmit(event)}>
                 <div className="kind-switch" role="group" aria-label="Tipo de lançamento">
-                  <button className={kind === "expense" ? "selected expense-choice" : ""} type="button" onClick={() => changeKind("expense")}><ArrowUpRight size={16} /> Despesa</button>
-                  <button className={kind === "income" ? "selected income-choice" : ""} type="button" onClick={() => changeKind("income")}><ArrowDownLeft size={16} /> Entrada</button>
+                  <button className={kind === "expense" ? "selected expense-choice" : ""} type="button" aria-pressed={kind === "expense"} onClick={() => changeKind("expense")}><ArrowUpRight size={16} /> Despesa</button>
+                  <button className={kind === "income" ? "selected income-choice" : ""} type="button" aria-pressed={kind === "income"} onClick={() => changeKind("income")}><ArrowDownLeft size={16} /> Entrada</button>
                 </div>
                 <label className="field"><span>Descrição</span><input autoFocus required maxLength={100} placeholder="Ex.: Conta de luz" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
                 <label className="field"><span>Valor (R$)</span><input required inputMode="decimal" placeholder="0,00" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
-                <label className="field"><span>Categoria</span><select value={category} onChange={(event) => setCategory(event.target.value)}>{(kind === "expense" ? expenseCategories : incomeCategories).map((item) => <option key={item}>{item}</option>)}</select></label>
+                <label className="field"><span>Categoria</span><select required value={category} onChange={(event) => setCategory(event.target.value)}>{categoriesForKind.length ? categoriesForKind.map((item) => <option key={item.name} value={item.name}>{item.name}</option>) : <option value="">Adicione uma categoria em Configurações</option>}</select></label>
                 <label className="field"><span>Data</span><input required type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
                 <div className="form-submit"><button className="primary-button" type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar lançamento"}</button></div>
               </form>
@@ -395,6 +573,139 @@ function App() {
         </div>
         <span className="app-version" aria-label={`Versão ${__APP_VERSION__}`}>v{__APP_VERSION__}</span>
       </main>
+      {categoryDialog && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !categoryDialogBusy) setCategoryDialog(null);
+          }}
+        >
+          <section
+            className="category-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-dialog-title"
+          >
+            <header className="category-dialog-header">
+              <div>
+                <p className="dialog-eyebrow">CONFIGURAÇÕES / CATEGORIAS</p>
+                <h2 id="category-dialog-title">
+                  {categoryDialog === "manage" ? "Adicionar/remover categorias" : "Editar categoria"}
+                </h2>
+                <p>{categoryDialog === "manage"
+                  ? "Organize as categorias disponíveis nos lançamentos."
+                  : "Renomeie uma categoria usada nos próximos lançamentos."}</p>
+              </div>
+              <button className="dialog-close" type="button" aria-label="Fechar janela" disabled={categoryDialogBusy} onClick={() => setCategoryDialog(null)}>
+                <X size={19} />
+              </button>
+            </header>
+            <div className="category-dialog-body">
+              {categoryDialogError && <div className="dialog-error" role="alert">{categoryDialogError}</div>}
+              <div className="category-dialog-type-switch" role="group" aria-label="Tipo de categoria">
+                <button
+                  type="button"
+                  className={categoryKind === "expense" ? "selected expense-choice" : ""}
+                  aria-pressed={categoryKind === "expense"}
+                  disabled={categoryDialogBusy}
+                  onClick={() => changeCategoryKind("expense")}
+                >Despesas</button>
+                <button
+                  type="button"
+                  className={categoryKind === "income" ? "selected income-choice" : ""}
+                  aria-pressed={categoryKind === "income"}
+                  disabled={categoryDialogBusy}
+                  onClick={() => changeCategoryKind("income")}
+                >Entradas</button>
+              </div>
+              {categoryDialog === "manage" ? (
+                <>
+                  <form className="dialog-add-form" onSubmit={(event) => void handleAddCategory(event)}>
+                    <label className="dialog-field">
+                      <span>Nova categoria de {categoryKind === "expense" ? "despesa" : "entrada"}</span>
+                      <input
+                        autoFocus
+                        aria-label="Nome da nova categoria"
+                        maxLength={40}
+                        placeholder="Ex.: Assinaturas"
+                        value={categoryDraft}
+                        onChange={(event) => setCategoryDraft(event.target.value)}
+                      />
+                    </label>
+                    <button className="dialog-primary-button" type="submit" disabled={categoryDialogBusy || !categoryDraft.trim()}>
+                      <Plus size={16} /> Adicionar
+                    </button>
+                  </form>
+                  <div className="dialog-list-heading">
+                    <h3>Categorias de {categoryKind === "expense" ? "despesa" : "entrada"}</h3>
+                    <span>{settingsCategories.length}</span>
+                  </div>
+                  <ul className="dialog-category-list">
+                    {settingsCategories.map((item) => (
+                      <li key={`${item.kind}-${item.name}`}>
+                        <span className={`dialog-category-dot ${item.kind}`} />
+                        <span className="dialog-category-name">{item.name}</span>
+                        <button
+                          className="dialog-icon-button danger"
+                          type="button"
+                          aria-label={`Remover categoria ${item.name}`}
+                          title={settingsCategories.length === 1 ? "Mantenha ao menos uma categoria" : "Remover categoria"}
+                          disabled={categoryDialogBusy || settingsCategories.length === 1}
+                          onClick={() => void handleRemoveCategory(item)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="dialog-note">Lançamentos antigos continuam exibindo a categoria original.</p>
+                </>
+              ) : (
+                <form className="dialog-edit-form" onSubmit={(event) => void handleEditCategory(event)}>
+                  <label className="dialog-field">
+                    <span>Categoria</span>
+                    <select
+                      value={editingCategoryName}
+                      disabled={categoryDialogBusy}
+                      onChange={(event) => {
+                        setEditingCategoryName(event.target.value);
+                        setEditedCategoryName(event.target.value);
+                        setCategoryDialogError("");
+                      }}
+                    >
+                      {settingsCategories.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="dialog-field">
+                    <span>Novo nome</span>
+                    <input
+                      autoFocus
+                      maxLength={40}
+                      placeholder="Digite o novo nome"
+                      disabled={categoryDialogBusy}
+                      value={editedCategoryName}
+                      onChange={(event) => setEditedCategoryName(event.target.value)}
+                    />
+                  </label>
+                  <p className="dialog-note">A alteração vale para novos lançamentos; registros antigos preservam o nome usado na época.</p>
+                  <footer className="category-dialog-footer">
+                    <button className="dialog-secondary-button" type="button" disabled={categoryDialogBusy} onClick={() => setCategoryDialog(null)}>Cancelar</button>
+                    <button className="dialog-primary-button" type="submit" disabled={categoryDialogBusy || !editableCategory || !editedCategoryName.trim()}>
+                      <Pencil size={15} /> {categoryDialogBusy ? "Salvando..." : "Salvar alterações"}
+                    </button>
+                  </footer>
+                </form>
+              )}
+            </div>
+            {categoryDialog === "manage" && (
+              <footer className="category-dialog-footer">
+                <button className="dialog-secondary-button" type="button" disabled={categoryDialogBusy} onClick={() => setCategoryDialog(null)}>Fechar</button>
+              </footer>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

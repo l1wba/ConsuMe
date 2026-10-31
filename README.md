@@ -6,7 +6,7 @@ Aplicativo desktop para controle financeiro pessoal. A interface usa React e Typ
 
 O número da versão é mantido em `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` e `src-tauri/tauri.conf.json`; mantenha esses valores sincronizados. O Vite obtém a versão do `package.json` e a exibe no canto inferior direito do app. A versão também define o nome dos instaladores.
 
-Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.3.1` inclui uma correção do modo de desenvolvimento para ignorar os arquivos de compilação Rust no monitoramento do Vite.
+Seguimos o formato `MAJOR.MINOR.PATCH`: aumente `PATCH` para correções e ajustes pequenos, `MINOR` para funcionalidades compatíveis e `MAJOR` para mudanças incompatíveis. Como o app ainda está na série `0.x`, a versão `0.5.0` adiciona o submenu em cascata e as janelas de gerenciamento e edição de categorias.
 
 ## Requisitos
 
@@ -40,4 +40,4 @@ O instalador/artefato da plataforma será gerado em `src-tauri/target/release/bu
 
 ## Armazenamento
 
-Na primeira execução, o aplicativo cria `financas.db` na pasta de dados local do aplicativo gerenciada pelo Tauri. Os valores monetários são armazenados em centavos inteiros para evitar imprecisão de ponto flutuante. Faça cópias de segurança desse arquivo para preservar seus dados.
+Na primeira execução, o aplicativo cria `financas.db` na pasta de dados local do aplicativo gerenciada pelo Tauri. Lançamentos, preferências e categorias ficam nesse banco; categorias removidas deixam de aparecer para novos lançamentos, mas continuam nos registros antigos. Os valores monetários são armazenados em centavos inteiros para evitar imprecisão de ponto flutuante. Faça cópias de segurança desse arquivo para preservar seus dados.
